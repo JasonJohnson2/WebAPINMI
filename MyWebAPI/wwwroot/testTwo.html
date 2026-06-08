@@ -1,0 +1,64 @@
+<div id="checkout_button">Check Out</div>
+<script
+src="https://secure.nmi.com/token/CollectCheckout.js"
+data-checkout-key="checkout_public_MfH6RU75T3g27b9D67N6Hu336JyAfb5b"
+></script>
+<script>
+window.addEventListener('DOMContentLoaded', function(e) {
+document.getElementById('checkout_button').addEventListener('click', function(e) {
+CollectCheckout.redirectToCheckout({
+type: "sale",
+lineItems: [
+{
+lineItemType: "purchase",
+sku: "1117",
+quantity: 1
+},
+],
+successUrl: null,
+cancelUrl: null,
+receipt: {
+showReceipt: true,
+sendToCustomer: true,
+},
+collectShippingInfo: true,
+useKount: false,
+paymentMethods: [
+{
+type: "creditCard",
+use3DSecure: false,
+},
+{
+type: "check",
+},
+{
+type: "googlePay",
+use3DSecure: false,
+},
+{
+type: "applePay",
+use3DSecure: false,
+},
+],
+fields: [
+],
+}).then((error) => {
+console.log(error);
+});
+});
+});
+</script>
+<style>
+#checkout_button {
+display: inline-block;
+font-family: sans-serif;
+font-size: 20px;
+background-color: #0BD992;
+color: white;
+border-radius: 4px;
+padding: 14px 28px;
+}
+#checkout_button:hover {
+cursor: pointer;
+}
+</style>

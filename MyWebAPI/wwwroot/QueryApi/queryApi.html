@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NMI Query API</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link href="../main.css" rel="stylesheet" />
+    <link href="queryApi.css" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <div id="mainNavBar"></div>
+
+    <!-- Main Container -->
+    <div class="container-fluid mt-4">
+      <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2">
+          <div class="query-sidebar">
+            <div class="sidebar-header">
+              <h5><i class="fas fa-database"></i> Query API</h5>
+              <p class="text-muted small">Data &amp; Transaction Reporting</p>
+              <div class="env-toggle-wrapper mt-2">
+                <div class="form-check form-switch d-flex align-items-center gap-2">
+                  <input
+                    class="form-check-input env-toggle"
+                    type="checkbox"
+                    role="switch"
+                    id="envToggle"
+                  />
+                  <label class="form-check-label" for="envToggle">
+                    <span id="envLabel" class="env-label env-sandbox">sandbox</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-menu">
+              <div class="menu-section">
+                <h6 class="menu-section-title">Transactions</h6>
+                <ul class="menu-items">
+                  <li class="menu-item active" data-endpoint="query-transactions">
+                    <i class="fas fa-search"></i>
+                    <span>Query Transactions</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="menu-section">
+                <h6 class="menu-section-title">Customer Vault</h6>
+                <ul class="menu-items">
+                  <li class="menu-item" data-endpoint="query-customer-vault">
+                    <i class="fas fa-vault"></i>
+                    <span>Query Vault</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="menu-section">
+                <h6 class="menu-section-title">Recurring</h6>
+                <ul class="menu-items">
+                  <li class="menu-item" data-endpoint="query-subscriptions">
+                    <i class="fas fa-sync"></i>
+                    <span>Query Subscriptions</span>
+                  </li>
+                  <li class="menu-item" data-endpoint="query-plans">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Query Plans</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="menu-section">
+                <h6 class="menu-section-title">Other Reports</h6>
+                <ul class="menu-items">
+                  <li class="menu-item" data-endpoint="query-invoicing">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Query Invoicing</span>
+                  </li>
+                  <li class="menu-item" data-endpoint="query-gateway-processors">
+                    <i class="fas fa-server"></i>
+                    <span>Gateway Processors</span>
+                  </li>
+                  <li class="menu-item" data-endpoint="query-merchant-profile">
+                    <i class="fas fa-id-badge"></i>
+                    <span>Merchant Profile</span>
+                  </li>
+                  <li class="menu-item" data-endpoint="query-test-mode">
+                    <i class="fas fa-flask"></i>
+                    <span>Test Mode Status</span>
+                  </li>
+                  <li class="menu-item" data-endpoint="query-account-updater">
+                    <i class="fas fa-redo"></i>
+                    <span>Account Updater</span>
+                  </li>
+                  <li class="menu-item" data-endpoint="query-receipt">
+                    <i class="fas fa-receipt"></i>
+                    <span>Transaction Receipt</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-md-9 col-lg-10">
+          <div id="endpointContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../utilities.js"></script>
+    <script src="queryApi.js"></script>
+  </body>
+</html>

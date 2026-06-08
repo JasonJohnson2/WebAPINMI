@@ -1,0 +1,300 @@
+---
+description: "Skill for debugging 3D Secure authentication flows"
+applyTo: "MyWebAPI"
+---
+
+# Skill: Debug 3D Secure (3DS) Payment Flows
+
+Use this skill to troubleshoot authentication issues when processing 3D Secure payments.
+
+## 3DS Flow Overview
+
+```
+Frontend Form
+    ↓
+NMI Payment Widget
+    ↓
+3DS Challenge (if required) ← USER AUTHENTICATES HERE
+    ↓
+Backend receives: CAVV, ECI, XID
+    ↓
+Backend validates auth data
+    ↓
+Process payment with NMI
+```
+
+---
+
+## Debugging Checklist
+
+### 1. Verify Frontend 3DS Widget Is Initialized
+
+**File:** `PaymentComponent/PaymentComponent.js` or your integration's JS
+
+Check that the NMI widget is loaded:
+
+```javascript
+import { mountNmiThreeDSecure } from "@nmipayments/nmi-pay";
+
+// Should be called on page load
+const threeDSInstance = mountNmiThreeDSecure(containerElement, {
+  clientSessionId: sessionId,
+  onAuthentication: (authData) => {
+    console.log("3DS Auth Result:", authData); // ← Check console for this log
+  },
+});
+```
+
+**Debug Steps:**
+1. Open DevTools (F12)
+2. Go to Console tab
+3. Look for log: `"3DS Auth Result: { cavv: ..., eci: ..., xid: ..., ... }"`
+4. If not present, 3DS widget may not be initialized properly
+
+### 2. Check If 3DS Challenge Is Required
+
+Not all cards trigger a 3DS challenge (frictionless flow may be used). Check NMI response:
+
+```javascript
+// In onAuthentication callback
+if (authData.cavv && authData.eci) {
+  console.log("3DS Challenge Completed:", {
+    cavv: authData.cavv,
+    eci: authData.eci,
+    xid: authData.xid,
+    threeDsVersion: authData.threeDsVersion,
+  });
+} else {
+  console.log("Frictionless Flow - No challenge required");
+}
+```
+
+### 3. Verify 3DS Data Is Sent to Backend
+
+**File:** Your frontend's payment submission function
+
+Ensure CAVV, ECI, XID are included in the API request:
+
+```javascript
+const paymentRequest = {
+  paymentToken: getPaymentTokenString(),
+  amount: amount,
+  first_name: formData.first_name,
+  
+  // 3DS Fields - These are critical
+  cardHolderAuth: authData.cardHolderAuth,  // "verified" or "attempted"
+  cavv: authData.cavv,                      // Base64-encoded auth value
+  eci: authData.eci,                        // eCommerce Indicator (e.g., "05")
+  xid: authData.xid,                        // Transaction ID from 3DS
+  directoryServerId: authData.directoryServerId,
+  threeDsVersion: authData.threeDsVersion,  // "2.1.0" or "2.2.0"
+};
+
+console.log("Sending to backend:", paymentRequest); // ← Check this
+```
+
+**Debug Steps:**
+1. Open DevTools Network tab (F12 → Network)
+2. Submit payment form
+3. Find POST request to your `/api/` endpoint
+4. Click on it, go to "Request" tab
+5. Expand request body and verify 3DS fields are present
+6. If missing, add them to `paymentRequest` object
+
+### 4. Check Backend Is Receiving 3DS Data
+
+**File:** Your controller (e.g., `PaymentApiController.cs`)
+
+Add logging to verify backend receives the fields:
+
+```csharp
+[HttpPost("process")]
+public async Task<IActionResult> ProcessPayment([FromBody] JsonElement jsonRequest)
+{
+    _logger.LogInformation("Raw JSON: {Json}", jsonRequest);
+    
+    // Extract 3DS fields
+    string cavv = null, eci = null, xid = null;
+    
+    if (jsonRequest.TryGetProperty("cavv", out var cavvProp))
+    {
+        cavv = cavvProp.GetString();
+        _logger.LogInformation("3DS CAVV: {Cavv}", cavv); // ← Check logs for this
+    }
+    
+    if (jsonRequest.TryGetProperty("eci", out var eciProp))
+    {
+        eci = eciProp.GetString();
+        _logger.LogInformation("3DS ECI: {Eci}", eci);
+    }
+    
+    if (jsonRequest.TryGetProperty("xid", out var xidProp))
+    {
+        xid = xidProp.GetString();
+        _logger.LogInformation("3DS XID: {Xid}", xid);
+    }
+    
+    // Continue with payment processing...
+}
+```
+
+**Debug Steps:**
+1. Run: `dotnet watch run`
+2. Terminal should show logs: `"3DS CAVV: abc123xyz..."`
+3. If logs are empty/null, 3DS data didn't reach backend → check frontend step (step 3 above)
+
+### 5. Verify Backend Passes 3DS to NMI
+
+When sending payment request to NMI API, include 3DS fields:
+
+```csharp
+var nmiRequest = new Dictionary<string, string>
+{
+    { "type", "sale" },
+    { "amount", amount.ToString() },
+    { "token", paymentToken },
+    
+    // 3DS fields required by NMI
+    { "cavv", cavv },
+    { "eci", eci },
+    { "xid", xid },
+    { "three_d_secure_version", threeDsVersion },
+};
+
+var content = new FormUrlEncodedContent(nmiRequest);
+var response = await _httpClient.PostAsync("https://secure.nmi.com/api/transact", content);
+
+_logger.LogInformation("NMI Response: {Response}", await response.Content.ReadAsStringAsync());
+```
+
+**Debug Steps:**
+1. Check backend logs: `"NMI Response: ..."`
+2. Look for in response: `"auth": "Y"` or `"cvv_response": "M"` (Match = good)
+3. If `"auth": "N"`, 3DS validation failed
+
+### 6. Check Browser Console for 3DS Errors
+
+Open DevTools Console (F12) and look for:
+
+```javascript
+// Common 3DS errors:
+❌ "Error: 3DS widget not mounted"
+   → Check that mountNmiThreeDSecure() was called
+
+❌ "Error: Invalid client session ID"
+   → Check clientSessionId is valid from NMI
+
+❌ "3DS Challenge failed: Cardholder rejected"
+   → User entered wrong PIN/OTP in 3DS dialog
+
+❌ "TypeError: authData is undefined"
+   → onAuthentication callback received null
+   → May indicate network issue with 3DS server
+```
+
+---
+
+## Common 3DS Issues & Fixes
+
+| Issue | Symptoms | Debug | Fix |
+|-------|----------|-------|-----|
+| **3DS not triggered** | CAVV/ECI always null, payment succeeds without challenge | Frontend logs show no auth data | Check if test card requires 3DS (e.g., use 4000002500003155 for Visa test) |
+| **"Invalid CAVV"** | Backend receives CAVV but NMI rejects it | NMI response: `"cavv_response": "N"` | Verify CAVV format (should be base64), check ECI value matches NMI specs |
+| **Missing XID** | Backend receives CAVV/ECI but XID is null | Frontend logs show `xid: undefined` | Ensure `onAuthentication(authData)` is called; may need different NMI package version |
+| **3DS popup never appears** | Widget loads but no challenge dialog | Browser console shows no errors | Check pop-up blocker, try opening devtools before testing |
+| **"Cardholder authentication failed"** | 3DS challenge appears but always fails | NMI logs show auth rejection | Use correct test OTP (varies by bank), or disable 3DS on test card |
+| **CORS error in browser** | Network request blocked, 3DS server unreachable | Console: `"CORS policy: No Access-Control-Allow-Origin"` | Check Startup.cs CORS policy, ensure NMI domain is allowed |
+
+---
+
+## Test Cards for 3DS
+
+### Visa
+- **Card:** `4000002500003155`
+- **Exp:** Any future date
+- **CVV:** Any 3 digits
+- **3DS:** Yes, will prompt (OTP: typically any 6 digits)
+
+### Mastercard
+- **Card:** `5200828282828210`
+- **Exp:** Any future date
+- **CVV:** Any 3 digits
+- **3DS:** Yes, will prompt
+
+### AmEx
+- **Card:** `378282246310005`
+- **Exp:** Any future date
+- **CVV:** Any 4 digits
+- **3DS:** Usually not required (depends on issuer)
+
+---
+
+## Logging Strategy
+
+Enable verbose logging in your controller to trace the full flow:
+
+```csharp
+_logger.LogInformation("STEP 1: Request received with token: {Token}", paymentToken);
+_logger.LogInformation("STEP 2: Extracted 3DS fields - CAVV: {Cavv}, ECI: {Eci}", cavv, eci);
+_logger.LogInformation("STEP 3: Sending to NMI...");
+_logger.LogInformation("STEP 4: NMI Response: {Response}", nmiResponse);
+_logger.LogInformation("STEP 5: Success! Transaction ID: {TxnId}", transactionId);
+```
+
+Then trace logs in terminal output during test.
+
+---
+
+## Quick Test Scenario
+
+1. **Start server:** `dotnet watch run`
+2. **Open:** `https://localhost:5125/PaymentComponent/paymentComponent.html`
+3. **Fill form** or click "Fill Test Data"
+4. **Enter test card:** `4000002500003155`
+5. **Submit form**
+6. **3DS Challenge Dialog** should appear
+7. **Enter OTP:** Any 6 digits
+8. **Check outputs:**
+   - Frontend console: `"3DS Auth Result: { cavv: ..., eci: ..., ... }"`
+   - Backend logs: `"CAVV: abc123..."`
+   - Success page or error message displayed
+
+---
+
+## Advanced Debugging
+
+### Enable Network Request Logging
+
+In browser DevTools → Network tab:
+1. Filter: `transact`
+2. Watch requests to NMI's transact endpoint
+3. Check request body includes `cavv`, `eci`, `xid`
+4. Check response includes `"success": "true"`
+
+### Check Session State
+
+If 3DS data is lost between requests:
+
+```csharp
+// In controller
+HttpContext.Session.SetString("ThreeDSData", JsonSerializer.Serialize(new { cavv, eci, xid }));
+_logger.LogInformation("Session data set: {SessionData}", HttpContext.Session.GetString("ThreeDSData"));
+```
+
+### Verify NMI Credentials
+
+```bash
+dotnet user-secrets get MyAppSettings:ApiKey
+```
+
+If API key is wrong, NMI rejects 3DS data.
+
+---
+
+## When to Escalate
+
+If after following all steps above:
+- 3DS widget doesn't load → Check NMI package version, browser compatibility
+- CAVV is rejected by NMI → May be NMI account configuration issue
+- Pop-up blocked → Browser security setting
+- Test card rejected → Try different test card or contact NMI support

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transaction History</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+      crossorigin="anonymous"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../main.css" />
+    <style>
+      .config-panel {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .config-panel h5 {
+        color: var(--primary-color, #667eea);
+        margin-bottom: 1rem;
+      }
+
+      .config-panel .form-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #495057;
+      }
+
+      #transaction-reporting-container {
+        min-height: 400px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        padding: 1rem;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .status-badge.connected {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-badge.disconnected {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .status-badge.loading {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .event-log {
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: "SF Mono", "Fira Code", monospace;
+        font-size: 0.8rem;
+        background: #1e1e2e;
+        color: #cdd6f4;
+        border-radius: 8px;
+        padding: 1rem;
+      }
+
+      .event-log .log-entry {
+        padding: 2px 0;
+        border-bottom: 1px solid rgba(205, 214, 244, 0.1);
+      }
+
+      .event-log .log-time {
+        color: #89b4fa;
+        margin-right: 8px;
+      }
+
+      .event-log .log-type {
+        color: #a6e3a1;
+        margin-right: 8px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body class="newBody">
+    <nav id="mainNavBar"></nav>
+
+    <div class="container-fluid mt-4 px-4">
+      <div class="row mb-3">
+        <div class="col">
+          <h2 class="mb-1">
+            <i class="fas fa-receipt me-2 text-primary"></i>
+            Transaction History
+          </h2>
+          <p class="text-muted">
+            Embedded NMI Transaction Reporting Component
+          </p>
+        </div>
+        <div class="col-auto d-flex align-items-center">
+          <span id="connectionStatus" class="status-badge disconnected">
+            <i class="fas fa-circle" style="font-size: 0.5rem"></i>
+            Not Connected
+          </span>
+        </div>
+      </div>
+
+      <div class="config-panel" id="configPanel">
+        <h5><i class="fas fa-cog me-2"></i>Configuration</h5>
+        <form id="configForm">
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label for="merchantId" class="form-label">Merchant ID <span class="text-danger">*</span></label>
+              <input
+                type="text"
+                class="form-control"
+                id="merchantId"
+                placeholder="Enter merchant ID"
+                required
+              />
+              <div class="form-text">The merchant ID to scope the session to</div>
+            </div>
+            <div class="col-md-3">
+              <label for="environment" class="form-label">Environment</label>
+              <select class="form-select" id="environment">
+                <option value="sandbox" selected>Sandbox</option>
+                <option value="production">Production</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label for="pageSize" class="form-label">Page Size</label>
+              <select class="form-select" id="pageSize">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button type="submit" class="btn btn-primary w-100" id="loadBtn">
+                <i class="fas fa-play me-1"></i> Load
+              </button>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="useDemoData">
+                <label class="form-check-label" for="useDemoData">
+                  Use demo data (no session required)
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div id="transaction-reporting-container">
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-table fa-3x mb-3 d-block"></i>
+          <p>Configure your settings above and click <strong>Load</strong> to display transaction data.</p>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#eventLogPanel"
+        >
+          <i class="fas fa-terminal me-1"></i> Event Log
+        </button>
+        <div class="collapse mt-2" id="eventLogPanel">
+          <div class="event-log" id="eventLog">
+            <div class="log-entry">
+              <span class="log-time">--:--:--</span>
+              <span class="log-type">INFO</span>
+              Waiting for component initialization...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../utilities.js"></script>
+    <script type="module" src="transactionHistory.js"></script>
+  </body>
+</html>
