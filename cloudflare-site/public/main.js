@@ -146,6 +146,13 @@ $(document).ready(function () {
 /* ─── Payment Submission ─── */
 function initPaymentSubmit() {
   document
+    .getElementById("paymentForm")
+    .addEventListener("submit", function (event) {
+      event.preventDefault();
+      document.getElementById("payButton").click();
+    });
+
+  document
     .getElementById("payButton")
     .addEventListener("click", async function (event) {
       event.preventDefault();

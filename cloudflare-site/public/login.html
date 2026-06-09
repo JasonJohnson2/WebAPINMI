@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in &middot; MyWebAPI</title>
+    <style>
+      :root {
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #ef4444;
+        --border: #e2e8f0;
+        --text: #1e293b;
+        --muted: #64748b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        color: var(--text);
+      }
+      .card {
+        width: 100%;
+        max-width: 400px;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 36px 32px 28px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+      .brand {
+        text-align: center;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 1.4rem;
+        font-weight: 700;
+        text-align: center;
+      }
+      .sub {
+        margin: 0 0 24px;
+        font-size: 0.875rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #374151;
+        margin-bottom: 6px;
+      }
+      input[type="password"] {
+        width: 100%;
+        height: 46px;
+        padding: 0 14px;
+        font-size: 1rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        margin-bottom: 18px;
+      }
+      input[type="password"]:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+      button {
+        width: 100%;
+        height: 46px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--primary-hover) 100%
+        );
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.05s, box-shadow 0.15s;
+      }
+      button:hover {
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      .error {
+        display: none;
+        margin: 0 0 16px;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        border-radius: 8px;
+      }
+      .error.show { display: block; }
+      .footer {
+        margin-top: 18px;
+        font-size: 0.75rem;
+        color: var(--muted);
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="brand">MyWebAPI</div>
+      <h1>Sign in</h1>
+      <p class="sub">This site is private.</p>
+
+      <div id="error" class="error">Incorrect password. Try again.</div>
+
+      <form id="loginForm" method="post" action="/api/auth/login" autocomplete="off">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          autofocus
+          autocomplete="current-password"
+        />
+        <input type="hidden" id="nextField" name="next" value="/" />
+        <button type="submit">Sign in</button>
+      </form>
+
+      <p class="footer">Payment testing sandbox &middot; access restricted</p>
+    </main>
+
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("error") === "1") {
+          document.getElementById("error").classList.add("show");
+        }
+        var nextRaw = params.get("next") || "/";
+        var safe = nextRaw.charAt(0) === "/"
+          && nextRaw.indexOf("//") !== 0
+          && nextRaw.indexOf("/\\") !== 0
+          ? nextRaw
+          : "/";
+        document.getElementById("nextField").value = safe;
+      })();
+    </script>
+  </body>
+</html>
