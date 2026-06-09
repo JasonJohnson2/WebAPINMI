@@ -21,7 +21,7 @@ cloudflare-site/
     _middleware.ts                 ← password gate for the whole site
     _auth.ts                       ← HMAC sign/verify helper (not routed)
     api/
-      payment.ts                   ← 501 stub; original PaymentController.cs not ported
+      payment.ts                   POST /api/payment (transact.php direct-post)
       auth/
         login.ts                   POST /api/auth/login
         logout.ts                  ANY  /api/auth/logout
@@ -44,7 +44,7 @@ cloudflare-site/
 | POST   | `/api/v5/checkout/process-payment`  | `functions/api/v5/checkout/process-payment.ts` |
 | POST   | `/api/v5/proxy`                     | `functions/api/v5/proxy.ts`            |
 | POST   | `/api/v5/query-proxy`               | `functions/api/v5/query-proxy.ts`      |
-| ANY    | `/api/payment`                      | `functions/api/payment.ts` (501 stub)  |
+| POST   | `/api/payment`                      | `functions/api/payment.ts` — transact.php direct-post sale |
 | POST   | `/api/auth/login`                   | `functions/api/auth/login.ts`          |
 | ANY    | `/api/auth/logout`                  | `functions/api/auth/logout.ts`         |
 
@@ -176,11 +176,16 @@ extract (`paymentComponent.html`, `cloudPOS.html`, `transactionHistory.html`,
 design — port the controllers and copy the static files into `public/` if you
 need any of them.
 
-## `/api/payment` is a stub
+## `/api/payment` (transact.php direct-post)
 
-`public/main.js` (the Classic Payment API page) POSTs to `/api/payment`, which
-in the original project was served by `PaymentController.cs` (a direct-post
-sale through `transact.php` with ACH/eCheck and 3DS pass-through). That
-function was **not** ported. `functions/api/payment.ts` returns HTTP 501 so the
-page loads cleanly but submissions show a "Not Implemented" error. The V5 API
-pages (`V5Api/*`) are fully functional.
+`public/main.js` POSTs the payment form (FormData) to `/api/payment`, which
+forwards every field to NMI's classic `transact.php` API with
+`security_key = env.NMI_PRIVATE_KEY` and returns NMI's raw query-string
+response. The `nmi_env` field (added by the page's env toggle) selects
+`sandbox.nmi.com` vs `secure.nmi.com`. ACH/eCheck and 3DS fields pass through
+unchanged because the function forwards every form field.
+
+For this endpoint to succeed, your `NMI_PRIVATE_KEY` value must be valid as
+the merchant's `security_key` for the environment you target — same account
+for both `sandbox` and `secure` works, otherwise you'll see
+`Sandbox accounts must use sandbox.nmi.com` from NMI.

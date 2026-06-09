@@ -1,8 +1,13 @@
 let _tokenResolve = null;
 
+// Public tokenization keys for Collect.js and Gateway.js (3DS).
+// NOT the merchant security_key — that one is used server-side by /api/payment
+// to call transact.php and must stay out of client code.
 const DEFAULT_KEYS = {
-  sandbox: "Kes9dc87682hQHn6JSTTs44uyvz66c56",
-  secure: "dWE6997j8s3rEwK75a4d53t6gZgJUEev",
+  sandbox: "Mm3Pt3-e6BCRA-329Frx-Ct5T9m",
+  // TODO: replace with the tokenization key for the live/secure account.
+  // The previous value here was a security_key, which Collect.js rejects.
+  secure: "Mm3Pt3-e6BCRA-329Frx-Ct5T9m",
 };
 
 const COLLECT_STATIC_DATA_ATTRIBUTES = [
@@ -206,8 +211,6 @@ function initPaymentSubmit() {
 
       formData.append("nmi_env", getEnvName());
 
-      // TODO: Port the original PaymentController.cs (transact.php direct-post sale).
-      // The corresponding Cloudflare function currently returns 501.
       await fetch("/api/payment", {
         method: "POST",
         body: formData,
