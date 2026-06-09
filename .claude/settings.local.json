@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Volumes/**)",
+      "Bash(cd *)",
+      "Bash(cp main.css utilities.js \"/Volumes/[C] Windows 11/Projects/WebAPINMI/cloudflare-site/public/\")",
+      "Bash(cp V5Api/checkout.html V5Api/v5Api.html V5Api/v5Api.js V5Api/v5Api.css V5Api/v5Collect3dsCheckout.html V5Api/v5Collect3dsCheckout.js \"/Volumes/[C] Windows 11/Projects/WebAPINMI/cloudflare-site/public/V5Api/\")",
+      "Bash(cp Main.html \"/Volumes/[C] Windows 11/Projects/WebAPINMI/cloudflare-site/public/index.html\")",
+      "Bash(cp main.js \"/Volumes/[C] Windows 11/Projects/WebAPINMI/cloudflare-site/public/main.js\")"
+    ]
+  }
+}

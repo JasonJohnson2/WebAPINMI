@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "u5veOG2YkgE=",
+  "dgSpecHash": "2ug0a/0yFJM=",
   "success": true,
-  "projectFilePath": "/Users/jason.johnson/Documents/GitHub/personal-workspace/MyWebAPI/MyWebAPI.csproj",
+  "projectFilePath": "/Volumes/[C] Windows 11/Projects/WebAPINMI/MyWebAPI/MyWebAPI.csproj",
   "expectedPackageFiles": [
     "/Users/jason.johnson/.nuget/packages/bogus/35.6.3/bogus.35.6.3.nupkg.sha512",
     "/Users/jason.johnson/.nuget/packages/microsoft.aspnetcore.openapi/10.0.0/microsoft.aspnetcore.openapi.10.0.0.nupkg.sha512",
