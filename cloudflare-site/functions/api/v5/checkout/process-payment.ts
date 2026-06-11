@@ -1,4 +1,8 @@
-import { json, type PagesContext } from "../_shared";
+import {
+  json,
+  readRequestTextWithLimit,
+  type PagesContext,
+} from "../_shared";
 
 interface CheckoutPaymentRequest {
   payment_token?: string;
@@ -10,9 +14,14 @@ export const onRequestPost = async (
 ): Promise<Response> => {
   const { request, env } = ctx;
 
+  const sizeCheck = await readRequestTextWithLimit(request);
+  if (!sizeCheck.ok) return sizeCheck.response;
+
   let body: CheckoutPaymentRequest;
   try {
-    body = (await request.json()) as CheckoutPaymentRequest;
+    body = sizeCheck.text.length > 0
+      ? (JSON.parse(sizeCheck.text) as CheckoutPaymentRequest)
+      : ({} as CheckoutPaymentRequest);
   } catch (_e) {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
@@ -29,13 +38,8 @@ export const onRequestPost = async (
 
   const privateKey = env.NMI_PRIVATE_KEY;
   if (!privateKey || privateKey.trim().length === 0) {
-    return json(
-      {
-        error:
-          "Server misconfigured: NMI_PRIVATE_KEY is not set. Run `wrangler secret put NMI_PRIVATE_KEY` or add it in the Cloudflare Pages dashboard.",
-      },
-      { status: 500 }
-    );
+    console.error("checkout/process-payment: NMI_PRIVATE_KEY secret not set");
+    return json({ error: "Server misconfigured" }, { status: 500 });
   }
 
   const endpoint = "https://secure.nmi.com/api/v5/payments/sale";
@@ -60,9 +64,9 @@ export const onRequestPost = async (
       headers: { "content-type": "application/json" },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    console.error("checkout/process-payment upstream error", err);
     return json(
-      { error: "Upstream V5 request failed", detail: msg },
+      { error: "Upstream V5 request failed" },
       { status: 502 }
     );
   }
