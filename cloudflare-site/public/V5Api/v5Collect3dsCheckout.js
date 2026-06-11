@@ -16,12 +16,10 @@
       $("publicKey").value = "z4ZWYx-QWAv8X-D8X4d5-5NZpD3";
       $("gatewayPublicKey").value =
         "checkout_public_EenmRhEbNd48J5r9m2v54jgdDQ5eSX72";
-      $("v5ApiKey").value = "FaDMr6C75FG3WK76CR77R2A55cq9QG6J";
     } else {
       logStep("Environment switched to SANDBOX");
       $("publicKey").value = "Mm3Pt3-e6BCRA-329Frx-Ct5T9m";
       $("gatewayPublicKey").value = "Mm3Pt3-e6BCRA-329Frx-Ct5T9m";
-      $("v5ApiKey").value = "Kes9dc87682hQHn6JSTTs44uyvz66c56";
     }
   });
 
@@ -35,12 +33,6 @@
 
   function $(id) {
     return document.getElementById(id);
-  }
-
-  function getV5BaseUrl() {
-    return $("envProduction").checked
-      ? "https://secure.nmi.com"
-      : "https://sandbox.nmi.com";
   }
 
   function getCollectJsUrl() {
@@ -397,9 +389,6 @@
           ? Object.keys(threeDsEvent)
           : [],
     });
-    const apiKey = $("v5ApiKey").value.trim();
-    if (!apiKey) throw new Error("Enter your V5 API key.");
-
     const amountStr = $("amount").value.trim();
     const amt = parseFloat(amountStr.replace(/,/g, ""));
     if (isNaN(amt) || amt <= 0) throw new Error("Enter a valid amount.");
@@ -424,10 +413,9 @@
     if (Object.keys(ca).length) body.cardholder_auth = ca;
 
     const payload = {
-      api_key: apiKey,
+      environment: $("envProduction").checked ? "secure" : "sandbox",
       method: "POST",
       url: "/v5/payments/sale",
-      baseUrl: getV5BaseUrl(),
       body: body,
     };
 
@@ -507,11 +495,6 @@
     if (!gatewayInstance) {
       logStep("Pay aborted: Gateway not initialized");
       setResult("Gateway is not initialized.", true);
-      return;
-    }
-    if (!$("v5ApiKey").value.trim()) {
-      logStep("Pay aborted: missing V5 API key");
-      setResult("Enter your V5 API key.", true);
       return;
     }
 

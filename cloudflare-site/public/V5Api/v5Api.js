@@ -1052,11 +1052,6 @@ const ENDPOINTS = [
 // UTILITY HELPERS
 // ============================================================================
 
-const DEFAULT_KEYS = {
-  sandbox: 'Kes9dc87682hQHn6JSTTs44uyvz66c56',
-  secure: 'dWE6997j8s3rEwK75a4d53t6gZgJUEev'
-};
-
 function getEnvName() {
   return $('#envToggle').is(':checked') ? 'secure' : 'sandbox';
 }
@@ -1067,13 +1062,16 @@ function getBaseUrl() {
     : 'https://sandbox.nmi.com';
 }
 
-function getApiKeyForEnv(env) {
-  return localStorage.getItem('nmi_v5_api_key_' + env) || DEFAULT_KEYS[env] || '';
-}
-
-function setApiKeyForEnv(env, key) {
-  localStorage.setItem('nmi_v5_api_key_' + env, key);
-}
+// One-time cleanup of legacy localStorage keys from older builds that stored
+// the NMI private API key in the browser. Safe to keep indefinitely.
+(function clearLegacyApiKeyStorage() {
+  try {
+    localStorage.removeItem('nmi_v5_api_key_sandbox');
+    localStorage.removeItem('nmi_v5_api_key_secure');
+  } catch (_e) {
+    /* no-op */
+  }
+})();
 
 function getMethodClass(method) {
   const map = { GET: 'get-method', POST: 'post-method', PUT: 'put-method', DELETE: 'delete-method', PATCH: 'patch-method' };
@@ -1135,17 +1133,6 @@ function renderEndpoint(endpointId) {
   html += '  </div>';
   html += '  <h2>' + endpoint.title + '</h2>';
   html += '  <p class="text-muted">' + endpoint.description + '</p>';
-  html += '</div>';
-
-  // API Key card
-  html += '<div class="card mb-3">';
-  html += '  <div class="card-header"><h5><i class="fas fa-key"></i> Authentication</h5></div>';
-  html += '  <div class="card-body">';
-  html += '    <div class="row"><div class="col-md-6">';
-  html += '      <label class="form-label" for="' + endpointId + '-apiKey">API Key <span class="text-danger">*</span></label>';
-  html += '      <input type="text" class="form-control" id="' + endpointId + '-apiKey" placeholder="Enter your V5 API key" autocomplete="off">';
-  html += '    </div></div>';
-  html += '  </div>';
   html += '</div>';
 
   // Path parameters
@@ -1264,12 +1251,6 @@ function renderEndpoint(endpointId) {
   html += '</div>';
 
   $('#endpointContainer').html(html);
-
-  // Restore API key for the current environment
-  const currentKey = getApiKeyForEnv(getEnvName());
-  if (currentKey) {
-    $('#' + endpointId + '-apiKey').val(currentKey);
-  }
 }
 
 // ============================================================================
@@ -1324,15 +1305,6 @@ function sendRequest(endpointId) {
   const endpoint = ENDPOINTS.find(e => e.id === endpointId);
   if (!endpoint) return;
 
-  const apiKey = $('#' + $.escapeSelector(endpointId + '-apiKey')).val().trim();
-  if (!apiKey) {
-    showV5Alert('Please enter your API key before making a request.', 'warning');
-    $('#' + $.escapeSelector(endpointId + '-apiKey')).focus();
-    return;
-  }
-
-  setApiKeyForEnv(getEnvName(), apiKey);
-
   // Validate required path params
   let valid = true;
   endpoint.pathParams.forEach(function (param) {
@@ -1352,7 +1324,6 @@ function sendRequest(endpointId) {
     url = url.replace('{' + param.name + '}', encodeURIComponent(paramVal));
   });
 
-  const baseUrl = getBaseUrl();
   const hasBody = endpoint.method !== 'GET' && endpoint.method !== 'DELETE';
 
   // Show loading state
@@ -1371,10 +1342,9 @@ function sendRequest(endpointId) {
     .html('<i class="fas fa-spinner fa-spin"></i> Sending...');
 
   const payload = {
-    api_key: apiKey,
+    environment: getEnvName(),
     method: endpoint.method,
-    url: url,
-    baseUrl: baseUrl
+    url: url
   };
 
   if (hasBody && endpoint.fieldGroups.length > 0) {
@@ -1509,12 +1479,6 @@ function handleEnvToggle() {
     const endpoint = ENDPOINTS.find(e => e.id === currentEndpointId);
     if (endpoint) {
       $('#' + $.escapeSelector(currentEndpointId + '-url')).text(getBaseUrl() + endpoint.path);
-    }
-
-    // Swap API key to match the selected environment
-    const $keyField = $('#' + $.escapeSelector(currentEndpointId + '-apiKey'));
-    if ($keyField.length) {
-      $keyField.val(getApiKeyForEnv(env));
     }
   }
 }

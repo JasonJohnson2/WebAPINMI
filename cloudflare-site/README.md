@@ -48,29 +48,32 @@ cloudflare-site/
 | POST   | `/api/auth/login`                   | `functions/api/auth/login.ts`          |
 | ANY    | `/api/auth/logout`                  | `functions/api/auth/logout.ts`         |
 
-All `/api/v5/*` functions return the same `{ success, statusCode, data, timestamp, endpoint }`
-envelope the original C# `ForwardNmiV5ApiAsync` produced. `process-payment.ts`
-streams the raw V5 response body back with the upstream status code, matching
-the original behavior.
+All `/api/v5/*` functions return a `{ success, statusCode, data, timestamp }`
+envelope. `process-payment.ts` streams the raw V5 response body back with the
+upstream status code, matching the original behavior.
 
 ## Environment variables / secrets
 
-| Name              | Used by                                    | How to set in production              |
-| ----------------- | ------------------------------------------ | ------------------------------------- |
-| `SITE_PASSWORD`   | `functions/_middleware.ts`, `functions/api/auth/login.ts` | `wrangler pages secret put SITE_PASSWORD` *or* Cloudflare dashboard → Settings → Variables and Secrets → "Encrypt" |
-| `NMI_PRIVATE_KEY` | `functions/api/v5/checkout/process-payment.ts` | `wrangler pages secret put NMI_PRIVATE_KEY` *or* Cloudflare dashboard → Settings → Variables and Secrets → "Encrypt" |
+| Name                       | Used by                                      | How to set in production |
+| -------------------------- | -------------------------------------------- | ------------------------ |
+| `SITE_PASSWORD`            | `functions/_middleware.ts`, `functions/api/auth/login.ts` | `wrangler pages secret put SITE_PASSWORD` *or* Cloudflare dashboard → Settings → Variables and Secrets → "Encrypt" |
+| `NMI_PRIVATE_KEY`          | `functions/api/v5/checkout/process-payment.ts`, `functions/api/payment.ts`; also the production fallback for `proxy.ts` / `query-proxy.ts` | `wrangler pages secret put NMI_PRIVATE_KEY` |
+| `NMI_PRIVATE_KEY_SANDBOX`  | `functions/api/v5/proxy.ts`, `functions/api/v5/query-proxy.ts` when `environment=sandbox` | `wrangler pages secret put NMI_PRIVATE_KEY_SANDBOX` |
+| `NMI_PRIVATE_KEY_SECURE`   | `functions/api/v5/proxy.ts`, `functions/api/v5/query-proxy.ts` when `environment=secure` (production); falls back to `NMI_PRIVATE_KEY` if unset | `wrangler pages secret put NMI_PRIVATE_KEY_SECURE` |
 
-Both secrets are **required**. The middleware fails closed: if `SITE_PASSWORD`
-is unset, *every* request returns HTTP 503 — so a misconfigured deploy can't
-accidentally leak the site.
+`SITE_PASSWORD` and at least one of the NMI key secrets are **required**. The
+middleware fails closed: if `SITE_PASSWORD` is unset, *every* request returns
+HTTP 503 — so a misconfigured deploy can't accidentally leak the site.
 
-The V5 endpoints `/payments/sale` and `/proxy` accept the merchant API key
-from the browser (Authorization header or `api_key` body field), so no
-server-side secret is needed for those. Only `/checkout/process-payment` keeps
-the private key server-side, exactly like the C# version did.
+The V5 proxy endpoints `/proxy` and `/query-proxy` **never** accept a
+merchant API key from the browser. Clients send only an `environment`
+selector (`"sandbox"` or `"secure"`) and the function looks up the matching
+secret server-side, mirroring the pattern in `process-payment.ts`. `/proxy`
+additionally enforces an allowlist of V5 endpoint paths and a 1 MB request
+size limit.
 
-**Never** put `NMI_PRIVATE_KEY` or `SITE_PASSWORD` in client-side code or commit
-either to git.
+**Never** put any `NMI_PRIVATE_KEY*` value or `SITE_PASSWORD` in client-side
+code or commit either to git.
 
 ## Authentication
 

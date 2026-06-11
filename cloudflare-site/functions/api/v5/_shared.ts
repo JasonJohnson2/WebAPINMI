@@ -1,5 +1,7 @@
 export interface Env {
   NMI_PRIVATE_KEY?: string;
+  NMI_PRIVATE_KEY_SANDBOX?: string;
+  NMI_PRIVATE_KEY_SECURE?: string;
 }
 
 export type PagesContext<E = Env> = {
@@ -10,6 +12,10 @@ export type PagesContext<E = Env> = {
   next: () => Promise<Response>;
   data: Record<string, unknown>;
 };
+
+export type V5Environment = "sandbox" | "secure";
+
+export const MAX_REQUEST_BYTES = 1_048_576;
 
 export function json(
   body: unknown,
@@ -31,6 +37,60 @@ export function normalizeAuthorizationKey(value: string | null): string | null {
     v = v.substring("bearer ".length).trim();
   }
   return v.length === 0 ? null : v;
+}
+
+export function parseEnvironment(value: unknown): V5Environment | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim().toLowerCase();
+  if (v === "sandbox") return "sandbox";
+  if (v === "secure" || v === "production" || v === "prod") return "secure";
+  return null;
+}
+
+export function getPrivateKeyForEnv(
+  env: Env,
+  which: V5Environment
+): string | null {
+  const candidate =
+    which === "secure"
+      ? env.NMI_PRIVATE_KEY_SECURE || env.NMI_PRIVATE_KEY
+      : env.NMI_PRIVATE_KEY_SANDBOX;
+  if (!candidate) return null;
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function baseUrlForEnvironment(which: V5Environment): string {
+  return which === "secure" ? "https://secure.nmi.com" : "https://sandbox.nmi.com";
+}
+
+export async function readRequestTextWithLimit(
+  request: Request
+): Promise<{ ok: true; text: string } | { ok: false; response: Response }> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength) {
+    const n = Number(contentLength);
+    if (Number.isFinite(n) && n > MAX_REQUEST_BYTES) {
+      return {
+        ok: false,
+        response: json(
+          { success: false, error: "Request body too large" },
+          { status: 413 }
+        ),
+      };
+    }
+  }
+  const text = await request.text();
+  if (text.length > MAX_REQUEST_BYTES) {
+    return {
+      ok: false,
+      response: json(
+        { success: false, error: "Request body too large" },
+        { status: 413 }
+      ),
+    };
+  }
+  return { ok: true, text };
 }
 
 export async function forwardNmiV5ApiAsync(args: {
@@ -76,7 +136,6 @@ export async function forwardNmiV5ApiAsync(args: {
         statusCode: upstream.status,
         data: parsed,
         timestamp,
-        endpoint: apiEndpoint,
       });
     }
 
@@ -86,16 +145,14 @@ export async function forwardNmiV5ApiAsync(args: {
       error: "NMI V5 API request failed",
       message: responseText,
       timestamp,
-      endpoint: apiEndpoint,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    console.error("forwardNmiV5ApiAsync upstream error", err);
     return json(
       {
         success: false,
         error: "Gateway error",
         message: "Unable to connect to NMI V5 API",
-        details: msg,
       },
       { status: 502 }
     );
