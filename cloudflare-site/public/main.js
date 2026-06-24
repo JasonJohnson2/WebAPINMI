@@ -10,16 +10,13 @@ const DEFAULT_KEYS = {
   secure: "Mm3Pt3-e6BCRA-329Frx-Ct5T9m",
 };
 
+// NOTE: Callbacks are intentionally NOT declared here as data-*-callback
+// string attributes. Collect.js runs those strings through eval(), which our
+// CSP blocks (no 'unsafe-eval'). They are instead passed as real functions to
+// CollectJS.configure() alongside blockEval:true — the PCI-compliant path per
+// https://docs.nmi.com/docs/quick-start-tutorial
 const COLLECT_STATIC_DATA_ATTRIBUTES = [
   ["data-variant", "inline"],
-  [
-    "data-fields-available-callback",
-    "(function() {console.log('Collect.js has added fields to the form')})",
-  ],
-  [
-    "data-validation-callback",
-    '(function (field, status, message) { if (status) { var message = field + " is now OK: " + message; } else { var message = field + " is now Invalid: " + message; } console.log(message); })',
-  ],
   ["data-field-ccnumber-title", "Card Number"],
   ["data-field-ccnumber-placeholder", "0000 0000 0000 0000"],
   ["data-field-ccnumber-enable-card-brand-previews", "true"],
@@ -714,6 +711,17 @@ function configureCollectJS() {
 
   if (typeof CollectJS != "undefined") {
     CollectJS.configure({
+      // Restricts callbacks to named functions instead of eval'd strings so the
+      // CSP can omit 'unsafe-eval'. See COLLECT_STATIC_DATA_ATTRIBUTES note.
+      blockEval: true,
+      fieldsAvailableCallback: function () {
+        console.log("Collect.js has added fields to the form");
+      },
+      validationCallback: function (field, status, message) {
+        console.log(
+          field + (status ? " is now OK: " : " is now Invalid: ") + message
+        );
+      },
       callback: function (response) {
         console.log("CollectJS response: " + JSON.stringify(response));
 
