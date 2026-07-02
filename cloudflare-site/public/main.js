@@ -66,11 +66,31 @@ function getBaseUrl() {
     : "https://sandbox.nmi.com";
 }
 
+// Containers Collect.js injects its <iframe> fields into. Must be cleared on
+// reload, otherwise a fresh Collect.js instance appends a second set of iframes
+// on top of the old ones (visible as duplicated card/expiry/CVV rows).
+const COLLECT_FIELD_CONTAINERS = [
+  "ccnumber",
+  "ccexp",
+  "cvv",
+  "demoCheckaccount",
+  "demoCheckaba",
+  "demoCheckname",
+];
+
+function clearCollectFields() {
+  COLLECT_FIELD_CONTAINERS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = "";
+  });
+}
+
 function removeCollectScript() {
   const existing = document.getElementById("collect-js");
   if (existing) {
     existing.remove();
   }
+  clearCollectFields();
   try {
     if (typeof CollectJS !== "undefined") {
       delete window.CollectJS;
