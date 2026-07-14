@@ -50,7 +50,9 @@ const COLLECT_STATIC_DATA_ATTRIBUTES = [
     "true",
   ],
   ["data-field-google-pay-billing-address-parameters-format", "MIN"],
-  ["data-price", "50.00"],
+  // NOTE: data-price is set dynamically per-load from the Amount field (see
+  // getConfiguredAmount / loadCollectScript) so the Apple/Google Pay sheet shows
+  // the amount actually being charged.
   ["data-currency", "USD"],
   ["data-country", "US"],
   ["data-style-sniffer", "true"],
@@ -58,6 +60,16 @@ const COLLECT_STATIC_DATA_ATTRIBUTES = [
 
 function getEnvName() {
   return $("#envToggle").is(":checked") ? "secure" : "sandbox";
+}
+
+// Amount used for the Apple/Google Pay payment sheet (data-price). Falls back to
+// the default test amount when the field is blank or invalid so wallet buttons
+// always have a positive price to render.
+const DEFAULT_TEST_AMOUNT = "50.00";
+function getConfiguredAmount() {
+  const el = document.getElementById("amountText");
+  const num = parseFloat(el ? el.value.trim() : "");
+  return Number.isFinite(num) && num > 0 ? num.toFixed(2) : DEFAULT_TEST_AMOUNT;
 }
 
 function getBaseUrl() {
@@ -113,6 +125,9 @@ function loadCollectScript(onLoaded) {
   COLLECT_STATIC_DATA_ATTRIBUTES.forEach(function (pair) {
     script.setAttribute(pair[0], pair[1]);
   });
+  // Set the wallet price from the current Amount field so the Apple/Google Pay
+  // sheet matches what /api/payment will actually charge.
+  script.setAttribute("data-price", getConfiguredAmount());
   script.onload = function () {
     if (typeof onLoaded === "function") {
       onLoaded();
@@ -127,7 +142,10 @@ function loadCollectScript(onLoaded) {
   document.body.appendChild(script);
 }
 
-function rebindCollectAfterEnvChange() {
+// Reload Collect.js and restore whichever payment method is currently showing.
+// Used when the environment or the wallet price (Amount) changes, both of which
+// require Collect.js to re-render its fields and wallet buttons.
+function reloadCollect() {
   const checkVisible =
     document.getElementById("checkWrapper").style.display === "block";
   loadCollectScript(function () {
@@ -146,15 +164,32 @@ function handleEnvToggle() {
     .text(env)
     .removeClass("env-sandbox env-secure")
     .addClass("env-" + env);
-  rebindCollectAfterEnvChange();
+  reloadCollect();
 }
 
 function initEnvToggle() {
   $("#envToggle").on("change", handleEnvToggle);
 }
 
+// Reload Collect.js when the Amount changes so the wallet payment sheet shows
+// the new price. Fires on 'change' (blur/commit), not per keystroke, and only
+// when the price actually changed — reloading clears any half-entered card
+// fields, so we avoid redundant reloads.
+function initAmountPriceSync() {
+  const el = document.getElementById("amountText");
+  if (!el) return;
+  let lastPrice = getConfiguredAmount();
+  el.addEventListener("change", function () {
+    const next = getConfiguredAmount();
+    if (next === lastPrice) return;
+    lastPrice = next;
+    reloadCollect();
+  });
+}
+
 $(document).ready(function () {
   initEnvToggle();
+  initAmountPriceSync();
   loadCollectScript(function () {
     configureCollectJS();
   });
@@ -180,16 +215,12 @@ function initPaymentSubmit() {
       event.preventDefault();
       showSpinner();
 
-      var form = document.getElementById("paymentForm");
-      var formData = new FormData(form);
-
       const skipToken = document.getElementById("skipTokenization").checked;
       let paymentToken = null;
 
       if (!skipToken) {
         try {
           paymentToken = await requestCollectJSToken();
-          formData.append("payment_token", paymentToken);
         } catch (err) {
           hideSpinner();
           displayError(err.message || "Tokenization failed or timed out.");
@@ -197,51 +228,70 @@ function initPaymentSubmit() {
         }
       }
 
-      const txnType = formData.get("type");
+      // Manual card/ACH flow: run Gateway.js 3DS when applicable.
+      await submitPayment(paymentToken, { runThreeDS: true });
+    });
+}
 
-      if (shouldRunThreeDS(txnType, formData, paymentToken)) {
-        try {
-          const threeDSResult = await runThreeDSecure(formData, paymentToken);
-          applyThreeDSToFormData(formData, threeDSResult);
-        } catch (err) {
-          hideSpinner();
-          displayError(
-            err && err.message
-              ? "3D Secure failed: " + err.message
-              : "3D Secure authentication failed."
-          );
-          return;
-        }
-      }
+// Sends the transaction to /api/payment. Shared by the manual Pay button and by
+// the Apple/Google Pay callback: wallet buttons tokenize themselves and fire
+// CollectJS's `callback` directly, with no manual Pay-button click, so both
+// paths need to funnel through the same submission logic.
+async function submitPayment(paymentToken, options) {
+  options = options || {};
+  const form = document.getElementById("paymentForm");
+  const formData = new FormData(form);
 
-      if (txnType === "") {
-        formData.delete("type");
-      }
+  if (paymentToken) {
+    formData.append("payment_token", paymentToken);
+  }
 
-      if (document.getElementById("omitBilling").checked) {
-        const billingKeys = [
-          "first_name", "last_name", "email", "phone",
-          "address1", "city", "state", "zip", "country",
-        ];
-        billingKeys.forEach((key) => formData.delete(key));
-      }
+  const txnType = formData.get("type");
 
-      formData.append("nmi_env", getEnvName());
+  // Wallet payments carry their own cardholder authentication (Apple/Google Pay
+  // cryptogram), so Gateway.js 3DS only runs for the manual card flow.
+  if (options.runThreeDS && shouldRunThreeDS(txnType, formData, paymentToken)) {
+    try {
+      const threeDSResult = await runThreeDSecure(formData, paymentToken);
+      applyThreeDSToFormData(formData, threeDSResult);
+    } catch (err) {
+      hideSpinner();
+      displayError(
+        err && err.message
+          ? "3D Secure failed: " + err.message
+          : "3D Secure authentication failed."
+      );
+      return;
+    }
+  }
 
-      await fetch("/api/payment", {
-        method: "POST",
-        body: formData,
-      })
-        .then((response) => response.text())
-        .then((data) => {
-          displayResponse(data);
-          hideSpinner();
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          displayError("Network error. Check that the server is running.");
-          hideSpinner();
-        });
+  if (txnType === "") {
+    formData.delete("type");
+  }
+
+  if (document.getElementById("omitBilling").checked) {
+    const billingKeys = [
+      "first_name", "last_name", "email", "phone",
+      "address1", "city", "state", "zip", "country",
+    ];
+    billingKeys.forEach((key) => formData.delete(key));
+  }
+
+  formData.append("nmi_env", getEnvName());
+
+  await fetch("/api/payment", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => response.text())
+    .then((data) => {
+      displayResponse(data);
+      hideSpinner();
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+      displayError("Network error. Check that the server is running.");
+      hideSpinner();
     });
 }
 
@@ -746,9 +796,21 @@ function configureCollectJS() {
         console.log("CollectJS response: " + JSON.stringify(response));
 
         if (_tokenResolve) {
+          // Manual card/ACH tokenization triggered by the Pay button.
           _tokenResolve(response.token);
           _tokenResolve = null;
+          return;
         }
+
+        // No manual request is pending, so this token came from an Apple/Google
+        // Pay button — it tokenizes and fires this callback directly. Submit it
+        // immediately; otherwise the token is lost and the later manual submit
+        // times out waiting on empty card fields.
+        showSpinner();
+        submitPayment(response.token, { runThreeDS: false }).catch((err) => {
+          hideSpinner();
+          displayError((err && err.message) || "Wallet payment failed.");
+        });
       },
     });
   }
