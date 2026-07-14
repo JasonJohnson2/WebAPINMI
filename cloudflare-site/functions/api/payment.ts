@@ -1,5 +1,10 @@
 interface Env {
+  // Per-environment merchant security keys, set as Cloudflare secrets — never
+  // hardcoded. NMI_PRIVATE_KEY is kept as a fallback for the sandbox account so
+  // existing deployments keep working.
   NMI_PRIVATE_KEY?: string;
+  NMI_PRIVATE_KEY_SANDBOX?: string;
+  NMI_PRIVATE_KEY_SECURE?: string;
 }
 
 const SANDBOX_URL = "https://sandbox.nmi.com/api/transact.php";
@@ -22,14 +27,6 @@ export const onRequestPost = async (
 ): Promise<Response> => {
   const { request, env } = ctx;
 
-  const securityKey = env.NMI_PRIVATE_KEY;
-  if (!securityKey || securityKey.trim().length === 0) {
-    return nmiError(
-      "Server misconfigured: NMI_PRIVATE_KEY not set on the Cloudflare project.",
-      500
-    );
-  }
-
   let form: FormData;
   try {
     form = await request.formData();
@@ -49,7 +46,22 @@ export const onRequestPost = async (
   }
 
   const nmiEnv = String(form.get("nmi_env") || "").toLowerCase();
-  const transactUrl = nmiEnv === "secure" ? SECURE_URL : SANDBOX_URL;
+  const isSecure = nmiEnv === "secure";
+  const transactUrl = isSecure ? SECURE_URL : SANDBOX_URL;
+
+  // Pick the security key that matches the chosen environment. Sending a
+  // sandbox key to secure.nmi.com (or vice versa) is rejected by the gateway.
+  const securityKey = isSecure
+    ? env.NMI_PRIVATE_KEY_SECURE
+    : env.NMI_PRIVATE_KEY_SANDBOX || env.NMI_PRIVATE_KEY;
+  if (!securityKey || securityKey.trim().length === 0) {
+    return nmiError(
+      `Server misconfigured: ${
+        isSecure ? "NMI_PRIVATE_KEY_SECURE" : "NMI_PRIVATE_KEY_SANDBOX"
+      } not set on the Cloudflare project.`,
+      500
+    );
+  }
 
   const upstreamBody = new URLSearchParams();
   for (const [k, v] of form.entries()) {
