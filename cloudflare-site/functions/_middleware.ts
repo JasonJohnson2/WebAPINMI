@@ -43,7 +43,11 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
     );
   }
 
-  if (BYPASS_PATHS.has(url.pathname)) {
+  // The /.well-known/ directory holds public metadata (RFC 8615) — e.g. the
+  // Apple Pay domain-association file NMI/Apple fetch server-to-server with no
+  // auth cookie. It must stay reachable without a login or domain verification
+  // fails.
+  if (BYPASS_PATHS.has(url.pathname) || url.pathname.startsWith("/.well-known/")) {
     return ctx.next();
   }
 
