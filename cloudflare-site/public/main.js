@@ -5,9 +5,8 @@ let _tokenResolve = null;
 // to call transact.php and must stay out of client code.
 const DEFAULT_KEYS = {
   sandbox: "Mm3Pt3-e6BCRA-329Frx-Ct5T9m",
-  // TODO: replace with the tokenization key for the live/secure account.
-  // The previous value here was a security_key, which Collect.js rejects.
-  secure: "Mm3Pt3-e6BCRA-329Frx-Ct5T9m",
+  // Public tokenization (Collect.js/Gateway.js) key for the live/secure account.
+  secure: "3PARw4-HvqS92-q2K2f4-EUHGJz",
 };
 
 // NOTE: Callbacks are intentionally NOT declared here as data-*-callback
