@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:cdn.skypack.dev)",
+      "Bash(cd /tmp)",
+      "Bash(node -e ' *)",
+      "Read(//tmp/**)",
+      "Bash(grep -oE '[A-Za-z_$][A-Za-z0-9_$]* = Qr\\\\\\(t2, \"[a-zA-Z]+\"' nmi-pay-shim.js)",
+      "Bash(curl -sI \"https://cdn.skypack.dev/@nmipayments/nmi-pay\")",
+      "Bash(curl -s \"https://registry.npmjs.org/@nmipayments/nmi-pay/latest\")",
+      "Bash(node -e 'let d=\"\";process.stdin.on\\(\"data\",c=>d+=c\\).on\\(\"end\",\\(\\)=>{try{const j=JSON.parse\\(d\\);console.log\\(\"name:\",j.name,\"version:\",j.version\\);}catch\\(e\\){console.log\\(\"parse fail:\",d.slice\\(0,200\\)\\);}}\\)')"
+    ]
+  }
+}
