@@ -10,7 +10,18 @@
       "WebSearch",
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:www.cloudflare.com)",
-      "Bash(brew upgrade *)"
+      "WebFetch(domain:docs.nmi.com)",
+      "WebFetch(domain:cdn.skypack.dev)",
+      "Bash(brew upgrade *)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ]
   }
 }
