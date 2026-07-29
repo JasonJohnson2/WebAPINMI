@@ -40,7 +40,10 @@ let tokenLookupData = null;
 // is used by /api/pay — it must never appear here.
 const TOKENIZATION_KEYS = {
   sandbox: "Mm3Pt3-e6BCRA-329Frx-Ct5T9m",
-  secure: "422sBg-455HhP-5TqMwA-G4HX7m",
+  // Aligned with the Collect.js page (main.js) so both use the same secure
+  // merchant account — the one where webapinmi.pages.dev is registered for
+  // Apple Pay and whose security key is set as NMI_PRIVATE_KEY_SECURE.
+  secure: "3PARw4-HvqS92-q2K2f4-EUHGJz",
 };
 
 function getEnvName() {
