@@ -34,7 +34,7 @@ const COLLECT_STATIC_DATA_ATTRIBUTES = [
   ["data-field-checkname-title", "Account Name"],
   ["data-field-checkname-placeholder", "Customer Name"],
   ["data-field-apple-pay-selector", ".apple-pay-button"],
-  ["data-field-apple-pay-required-billing-contact-fields", "postalAddress"],
+  ["data-field-apple-pay-required-billing-contact-fields", '["postalAddress"]'],
   ["data-field-google-pay-selector", ".google-pay-button"],
   ["data-field-google-pay-shipping-address-required", "true"],
   [
